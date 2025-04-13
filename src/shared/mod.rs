@@ -10,7 +10,7 @@ use tracing::error;
 use walkdir::WalkDir;
 
 use crate::config::SiteConfig;
-use crate::converter;
+use crate::converter2;
 use crate::schema::{format_errors, validate_metadata, ContentSchema};
 
 /// Render full norg page by converting it to HTML and applying tera template
@@ -148,7 +148,7 @@ pub async fn init_tera(templates_dir: &str, theme_templates_dir: &Path) -> Resul
 /// # Returns
 /// * `toml::Value` - The parsed metadata or an empty table if an error occurs.
 pub async fn load_metadata(path: PathBuf, rel_path: PathBuf, routes_url: &str) -> toml::Value {
-    let Ok(content) = tokio::fs::read_to_string(&path).await else {
+    let Ok(content) = tokio::fs::read(&path).await else {
         error!(
             "{} {}",
             "Norg file not found for".bold(),
@@ -156,8 +156,8 @@ pub async fn load_metadata(path: PathBuf, rel_path: PathBuf, routes_url: &str) -
         );
         return toml::Value::Table(toml::map::Map::new());
     };
-    let (html, toc) = converter::html::convert(&content, routes_url);
-    let mut metadata = converter::meta::convert(&content, Some(converter::html::toc_to_toml(&toc)))
+    let (html, ctx) = converter2::html::convert(&path, &content, routes_url);
+    let mut metadata = toml::Value::try_from(ctx.meta)
         .unwrap_or(toml::Value::Table(toml::map::Map::new()));
     let permalink = {
         let mut permalink_path = rel_path.with_extension("");

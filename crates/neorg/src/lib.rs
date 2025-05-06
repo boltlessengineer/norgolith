@@ -47,11 +47,11 @@ pub fn query_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
             .filter_map(Result::ok)
             .filter(|path| path.extension().is_some_and(|ext| ext == "norg"))
             .filter(|path| *path != self_path)
-            .map(|path| {
-                path.strip_prefix(&root)
-                    .map(Path::to_path_buf)
-                    .unwrap_or(path)
-            })
+            // .map(|path| {
+            //     path.strip_prefix(&root)
+            //         .map(Path::to_path_buf)
+            //         .unwrap_or(path)
+            // })
             .collect(),
     )
 }
@@ -72,6 +72,31 @@ pub fn export_linkable_href(self_path: &Path, target: NorgLinkAppTarget) -> Stri
         Err(_) => target_path,
     };
     target_path.to_string_lossy().to_string()
+}
+
+pub fn create_app_target(self_path: &Path, path: &Path) -> NorgLinkAppTarget {
+    assert!(self_path.is_absolute());
+    assert!(path.is_absolute());
+    let cwd = self_path.parent().unwrap();
+    let path = path.with_extension("");
+    if let Ok(path) = path.strip_prefix(cwd) {
+        return NorgLinkAppTarget {
+            workspace: None,
+            path: path.to_path_buf(),
+            scopes: vec![],
+        };
+    }
+    let workspace = get_workspace(self_path).unwrap();
+    if let Ok(path) = path.strip_prefix(workspace.path) {
+        return NorgLinkAppTarget {
+            workspace: None,
+            path: PathBuf::from("/").join(path),
+            scopes: vec![],
+        };
+    }
+    // TODO: find for external workspace from workspace manifest
+    let _ext_workspace = get_workspace(&path).unwrap();
+    todo!("path is outside of current workspace")
 }
 
 #[cfg(test)]
@@ -100,7 +125,7 @@ mod test {
             &std::path::absolute("../../my-site/content/posts/index.norg").unwrap(),
             NorgLinkAppTarget {
                 workspace: None,
-                path: String::from("desk-setup-2025"),
+                path: PathBuf::from("desk-setup-2025"),
                 scopes: vec![],
             },
         );
@@ -109,10 +134,23 @@ mod test {
             &std::path::absolute("../../my-site/content/posts/index.norg").unwrap(),
             NorgLinkAppTarget {
                 workspace: None,
-                path: String::from("desk-setup-2025"),
+                path: PathBuf::from("desk-setup-2025"),
                 scopes: vec![],
             },
         );
         assert_eq!(&href, "/posts/desk-setup-2025",);
+    }
+
+    #[test]
+    fn test_create_app_target() {
+        let target = create_app_target(
+            &std::path::absolute("../../my-site/content/posts/index.norg").unwrap(),
+            &std::path::absolute("../../my-site/content/posts/desk-setup-2025.norg").unwrap(),
+        );
+        assert_eq!(target, NorgLinkAppTarget {
+            workspace: None,
+            path: PathBuf::from("desk-setup-2025"),
+            scopes: vec![],
+        });
     }
 }

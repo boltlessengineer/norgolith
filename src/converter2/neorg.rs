@@ -67,6 +67,26 @@ pub(crate) fn create_exporter() -> Exporter {
         Janet::string(neorg::export_linkable_href(&path, target).into())
     }
 
+    #[janetrs::janet_fn]
+    fn neorg_create_app_target(args: &mut [Janet]) -> Janet {
+        use janetrs::JanetArgs as _;
+        use janetrs::{JanetType, TaggedJanet};
+        use std::path::PathBuf;
+
+        let self_path = match args.get_tagged_matches(0, &[JanetType::Buffer, JanetType::String]) {
+            TaggedJanet::Buffer(b) => PathBuf::from(&b.to_os_str_lossy()),
+            TaggedJanet::String(s) => PathBuf::from(&s.to_os_str_lossy()),
+            _ => unreachable!("Already checked to be a buffer|string"),
+        };
+        let path = match args.get_tagged_matches(1, &[JanetType::Buffer, JanetType::String]) {
+            TaggedJanet::Buffer(b) => PathBuf::from(&b.to_os_str_lossy()),
+            TaggedJanet::String(s) => PathBuf::from(&s.to_os_str_lossy()),
+            _ => unreachable!("Already checked to be a buffer|string"),
+        };
+        let target = neorg::create_app_target(&self_path, &path);
+        Janet::structs(target.into())
+    }
+
     let mut exporter = Exporter::new();
 
     #[rustfmt::skip]
@@ -75,6 +95,7 @@ pub(crate) fn create_exporter() -> Exporter {
 
         janet.add_c_fn(CFunOptions::new(c"neorg/get-workspace", neorg_get_workspace_c));
         janet.add_c_fn(CFunOptions::new(c"neorg/query-docs", neorg_query_docs_c));
+        janet.add_c_fn(CFunOptions::new(c"neorg/create-app-target", neorg_create_app_target_c));
         janet.add_c_fn(CFunOptions::new(c"_neorg/export/linkable-href", neorg_export_linkable_href_c));
 
         janet

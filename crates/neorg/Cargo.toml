@@ -1,0 +1,9 @@
+[package]
+name = "neorg"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+janetrs = { workspace = true }
+norg-rs = { workspace = true }
+glob = "0.3.2"

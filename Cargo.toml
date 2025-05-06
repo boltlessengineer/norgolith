@@ -15,8 +15,22 @@ include = ["src/**/*", "LICENSE", "README.md"]
 name = "lith"
 path = "src/main.rs"
 
+[workspace]
+resolver = "2"
+members = [
+    ".",
+    "crates/*",
+]
+
+[workspace.dependencies]
+# norg-rs = { path = "../../projects/norg-rs" }
+norg-rs = { git = "https://github.com/boltlessengineer/norg-rs" }
+janetrs = { git = "https://github.com/boltlessengineer/janetrs", branch = "feat/unmarshal" }
+
 [dependencies]
-norg-rs = { path = "../../projects/norg-rs" }
+neorg = { path = "crates/neorg" }
+norg-rs = { workspace = true }
+janetrs = { workspace = true }
 chrono = { version = "0.4.39", features = ["serde"] }
 clap = { version = "4.5.27", features = ["deprecated", "derive", "env", "wrap_help"] }
 comfy-table = "7.1.3"

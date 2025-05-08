@@ -35,6 +35,7 @@ pub fn get_workspace(path: &Path) -> Option<NeorgWorkspaceManifest> {
     return None;
 }
 
+// TODO: rename this to glob_docs
 pub fn query_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
     // TODO: remove these asserts and use AbsPath type instead to ensure path is absolute
     assert!(self_path.is_absolute());
@@ -97,6 +98,11 @@ pub fn create_app_target(self_path: &Path, path: &Path) -> NorgLinkAppTarget {
     // TODO: find for external workspace from workspace manifest
     let _ext_workspace = get_workspace(&path).unwrap();
     todo!("path is outside of current workspace")
+}
+
+pub fn parse_file(path: &Path) -> norg_rs::parser::NorgAST {
+    let bytes = std::fs::read(path).unwrap();
+    norg_rs::parser::parse(&bytes)
 }
 
 #[cfg(test)]

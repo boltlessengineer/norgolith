@@ -87,6 +87,21 @@ pub(crate) fn create_exporter() -> Exporter {
         Janet::structs(target.into())
     }
 
+    #[janetrs::janet_fn]
+    fn neorg_parse_file(args: &mut [Janet]) -> Janet {
+        use janetrs::JanetArgs as _;
+        use janetrs::{JanetType, TaggedJanet};
+        use std::path::PathBuf;
+
+        let path = match args.get_tagged_matches(0, &[JanetType::Buffer, JanetType::String]) {
+            TaggedJanet::Buffer(b) => PathBuf::from(&b.to_os_str_lossy()),
+            TaggedJanet::String(s) => PathBuf::from(&s.to_os_str_lossy()),
+            _ => unreachable!("Already checked to be a buffer|string"),
+        };
+        let ast = neorg::parse_file(&path);
+        Janet::structs(ast.into())
+    }
+
     let mut exporter = Exporter::new();
 
     #[rustfmt::skip]
@@ -97,6 +112,7 @@ pub(crate) fn create_exporter() -> Exporter {
         janet.add_c_fn(CFunOptions::new(c"neorg/query-docs", neorg_query_docs_c));
         janet.add_c_fn(CFunOptions::new(c"neorg/create-app-target", neorg_create_app_target_c));
         janet.add_c_fn(CFunOptions::new(c"_neorg/export/linkable-href", neorg_export_linkable_href_c));
+        janet.add_c_fn(CFunOptions::new(c"neorg/parse-file", neorg_parse_file_c));
 
         janet
             .run_bytes(include_bytes!("../resources/janet/neorg.janet"))

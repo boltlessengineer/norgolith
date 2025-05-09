@@ -36,6 +36,7 @@ pub fn get_workspace(path: &Path) -> Option<NeorgWorkspaceManifest> {
 }
 
 // TODO: rename this to glob_docs
+// TODO: treat path as relative to current path
 pub fn query_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
     // TODO: remove these asserts and use AbsPath type instead to ensure path is absolute
     assert!(self_path.is_absolute());
@@ -48,37 +49,77 @@ pub fn query_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
             .filter_map(Result::ok)
             .filter(|path| path.extension().is_some_and(|ext| ext == "norg"))
             .filter(|path| *path != self_path)
-            // .map(|path| {
-            //     path.strip_prefix(&root)
-            //         .map(Path::to_path_buf)
-            //         .unwrap_or(path)
-            // })
             .collect(),
     )
 }
 
-pub fn export_linkable_href(self_path: &Path, target: NorgLinkAppTarget) -> String {
-    assert!(self_path.is_absolute());
-    let cwd = self_path.parent().unwrap();
-    let workspace = if let Some(_name) = target.workspace {
-        todo!("handle external workspace")
-    } else if let Some(workspace) = get_workspace(&self_path) {
-        workspace.path
-    } else {
-        std::env::current_dir().unwrap()
-    };
-    let target_path = cwd.join(&target.path);
-    let target_path = match target_path.strip_prefix(workspace) {
-        Ok(p) => PathBuf::from("/").join(p),
-        Err(_) => target_path,
-    };
-    target_path.to_string_lossy().to_string()
+pub struct Location {
+    pub path: PathBuf,
+    // pub range: Range,
 }
 
-pub fn create_app_target(self_path: &Path, path: &Path) -> NorgLinkAppTarget {
-    assert!(self_path.is_absolute());
+#[derive(Debug)]
+pub enum ResolveAppTargetError {
+    NoWorkspaceAt(PathBuf),
+    NoExternalWorkspace(String),
+}
+
+/// resolve `NorgLinkAppTarget` to `Location`
+pub fn resolve_target(
+    origin_path: &Path,
+    target: &NorgLinkAppTarget,
+) -> Result<Location, ResolveAppTargetError> {
+    assert!(origin_path.is_absolute());
+    let path = match &target.workspace {
+        // {:$name:foo}
+        Some(name) => {
+            let origin_workspace = get_workspace(&origin_path)
+                .ok_or(ResolveAppTargetError::NoWorkspaceAt(origin_path.into()))?;
+            let target_workspace = origin_workspace
+                .get_external_workspace_by_name(&name)
+                .ok_or(ResolveAppTargetError::NoExternalWorkspace(name.to_string()))?;
+            let stripped_path = target.path.strip_prefix("/").unwrap();
+            target_workspace.path.join(stripped_path)
+        }
+        // {:/foo}
+        None if target.path.is_absolute() => {
+            let origin_workspace = get_workspace(&origin_path)
+                .ok_or(ResolveAppTargetError::NoWorkspaceAt(origin_path.into()))?;
+            let stripped_path = target.path.strip_prefix("/").unwrap();
+            origin_workspace.path.join(stripped_path)
+        }
+        // {:foo}
+        None => origin_path.parent().unwrap().join(&target.path),
+    };
+    // let range =
+    Ok(Location { path })
+}
+
+pub fn export_linkable_href(origin_path: &Path, target: NorgLinkAppTarget) -> String {
+    assert!(origin_path.is_absolute());
+    let workspace = get_workspace(&origin_path).unwrap().path;
+    let location = resolve_target(origin_path, &target).unwrap();
+    let is_index = location
+        .path
+        .file_stem()
+        .is_some_and(|name| name == "index");
+    let target_path = if is_index {
+        location.path.parent().unwrap().to_path_buf()
+    } else {
+        location.path
+    };
+    target_path
+        .strip_prefix(workspace)
+        .map(|p| PathBuf::from("/").join(p))
+        .unwrap_or(target_path)
+        .to_string_lossy()
+        .to_string()
+}
+
+pub fn create_app_target(origin_path: &Path, path: &Path) -> NorgLinkAppTarget {
+    assert!(origin_path.is_absolute());
     assert!(path.is_absolute());
-    let cwd = self_path.parent().unwrap();
+    let cwd = origin_path.parent().unwrap();
     let path = path.with_extension("");
     if let Ok(path) = path.strip_prefix(cwd) {
         return NorgLinkAppTarget {
@@ -87,7 +128,7 @@ pub fn create_app_target(self_path: &Path, path: &Path) -> NorgLinkAppTarget {
             scopes: vec![],
         };
     }
-    let workspace = get_workspace(self_path).unwrap();
+    let workspace = get_workspace(origin_path).unwrap();
     if let Ok(path) = path.strip_prefix(workspace.path) {
         return NorgLinkAppTarget {
             workspace: None,
@@ -153,10 +194,13 @@ mod test {
             &std::path::absolute("../../my-site/content/posts/index.norg").unwrap(),
             &std::path::absolute("../../my-site/content/posts/desk-setup-2025.norg").unwrap(),
         );
-        assert_eq!(target, NorgLinkAppTarget {
-            workspace: None,
-            path: PathBuf::from("desk-setup-2025"),
-            scopes: vec![],
-        });
+        assert_eq!(
+            target,
+            NorgLinkAppTarget {
+                workspace: None,
+                path: PathBuf::from("desk-setup-2025"),
+                scopes: vec![],
+            }
+        );
     }
 }

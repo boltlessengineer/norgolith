@@ -42,10 +42,15 @@
      (fn [ctx [query]]
        (def docs (neorg/query-docs (ctx :path) query))
        (def items (seq [path :in docs
-                        :unless ((neorg/doc/read-meta path) "draft")]
+                        :let [meta (neorg/doc/read-meta path)]
+                        :unless (meta "draft")]
                     (def target [:app (neorg/create-app-target (ctx :path) path)])
+                    (def title (meta "title"))
+                    (def markup [{:kind :text
+                                  :text title}])
                     (def link {:kind :link
-                               :target target})
+                               :target target
+                               :markup markup})
                     (def paragraph {:kind :paragraph
                                     :inlines [link]})
                     {:kind :list-item

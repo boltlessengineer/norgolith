@@ -35,14 +35,16 @@ pub fn get_workspace(path: &Path) -> Option<NeorgWorkspaceManifest> {
     return None;
 }
 
-// TODO: rename this to glob_docs
-// TODO: treat path as relative to current path
-pub fn query_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
+pub fn glob_docs(self_path: &Path, query: &str) -> Option<Vec<PathBuf>> {
     // TODO: remove these asserts and use AbsPath type instead to ensure path is absolute
     assert!(self_path.is_absolute());
-    let workspace = get_workspace(self_path)?;
-    let root = workspace.path;
-    let query = root.join(query);
+    let query = if let Some(query) = query.strip_prefix("/") {
+        let workspace = get_workspace(self_path)?;
+        workspace.path.join(query)
+    } else {
+        self_path.parent()?.join(query)
+    };
+    println!("glob to: {query:?}");
     Some(
         glob::glob(query.to_str().unwrap())
             .unwrap()
@@ -156,7 +158,7 @@ mod test {
     fn test_query_docs() {
         let query = "posts/*";
         let path = std::path::absolute("../../my-site/content/posts/index.norg").unwrap();
-        let docs = query_docs(&path, query);
+        let docs = glob_docs(&path, query);
         assert_eq!(
             docs,
             Some(vec![

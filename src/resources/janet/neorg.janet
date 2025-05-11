@@ -38,9 +38,9 @@
 #   (error "todo"))
 
 (put norg/ast/tag
-     "ul-docs"
+     "ul-glob-docs"
      (fn [ctx [query]]
-       (def docs (neorg/query-docs (ctx :path) query))
+       (def docs (neorg/glob-docs (ctx :path) query))
        (def items (seq [path :in docs
                         :let [meta (neorg/doc/read-meta path)]
                         :unless (meta "draft")]

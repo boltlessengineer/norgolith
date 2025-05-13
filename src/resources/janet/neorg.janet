@@ -57,3 +57,20 @@
                      :contents [paragraph]}))
        [{:kind :unordered-list
          :items items}]))
+
+(put norg/ast/tag
+     "private"
+     (fn [ctx _args _lines]
+       []))
+
+(put norg/ast/tag
+     "todo"
+     (fn [ctx _args]
+       (print "todo")
+       []))
+
+(put norg/ast/tag
+     "\\todo"
+     (fn [ctx _args _markup]
+       (print "inline-todo")
+       []))

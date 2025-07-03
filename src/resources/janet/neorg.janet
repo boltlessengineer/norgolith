@@ -6,7 +6,7 @@
       :day    (<- (+ (* "0" (range "19"))
                      (* (range "12") :d)
                      (* "3" (range "01"))))
-      :hour   (<- (+ (* (range "12") :d)
+      :hour   (<- (+ (* (range "01") :d)
                      (* "2" (range "03"))))
       :minute (<- (* (range "05") :d))
       :second (<- (* (range "05") :d))
@@ -22,7 +22,7 @@
 (defn iso8601/parse [ts]
   (var parts (peg/match iso8601/grammar ts))
   (if-not parts
-    (error "invalid timestamp format"))
+    (error (string "invalid timestamp format: " ts)))
   (let [[ys ms ds hs mins ss tzn tzh tzm] parts]
     (var year (scan-number ys))
     (var month (dec (scan-number ms)))
